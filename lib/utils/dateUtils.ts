@@ -68,10 +68,23 @@ export function getPreviousWeek(date: Date): Date {
 }
 
 /**
- * Format date to YYYY-MM-DD
+ * Format date to YYYY-MM-DD in local time (not UTC)
+ * This prevents timezone shifts when storing dates
  */
 export function formatDateForDB(date: Date): string {
-  return date.toISOString().split('T')[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Parse a date string (YYYY-MM-DD) as local time (not UTC)
+ * This prevents timezone shifts when reading dates from the database
+ */
+export function parseDateFromDB(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('T')[0].split('-').map(Number);
+  return new Date(year, month - 1, day); // Month is 0-indexed
 }
 
 /**
@@ -92,5 +105,13 @@ export function getWeekDays(startDate: Date): Array<{ day: string; date: Date }>
     date.setDate(startDate.getDate() + index);
     return { day, date };
   });
+}
+
+/**
+ * Get the current week (week containing today)
+ * Returns the Monday-Friday range for the week containing the given date
+ */
+export function getCurrentWeek(): { start: Date; end: Date } {
+  return getWeekRange(new Date());
 }
 

@@ -40,6 +40,7 @@ CREATE POLICY "Admins can view all profiles" ON profiles
 
 **For weeks table:**
 ```sql
+-- Policy 1: Admins can manage weeks
 CREATE POLICY "Admins can manage weeks" ON weeks
   FOR ALL USING (
     EXISTS (
@@ -48,6 +49,10 @@ CREATE POLICY "Admins can manage weeks" ON weeks
       AND profiles.is_admin = true
     )
   );
+
+-- Policy 2: Volunteers can view published weeks
+CREATE POLICY "Volunteers can view published weeks" ON weeks
+  FOR SELECT USING (published = true);
 ```
 
 **For routes table:**
@@ -71,6 +76,10 @@ CREATE POLICY "Admins can manage assignments" ON assignments
 -- Policy 2: Volunteers can view their own assignments
 CREATE POLICY "Volunteers can view own assignments" ON assignments
   FOR SELECT USING (volunteer_id = auth.uid());
+
+-- Policy 3: Volunteers can delete (cancel) their own assignments
+CREATE POLICY "Volunteers can delete own assignments" ON assignments
+  FOR DELETE USING (volunteer_id = auth.uid());
 ```
 
 ### Step 3: Add Missing Constraints

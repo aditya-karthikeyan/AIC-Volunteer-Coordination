@@ -87,6 +87,10 @@ CREATE POLICY "Admins can manage assignments" ON assignments
 -- Policy: Volunteers can view their own assignments
 CREATE POLICY "Volunteers can view own assignments" ON assignments
   FOR SELECT USING (volunteer_id = auth.uid());
+
+-- Policy: Volunteers can delete (cancel) their own assignments
+CREATE POLICY "Volunteers can delete own assignments" ON assignments
+  FOR DELETE USING (volunteer_id = auth.uid());
 ```
 
 ### 4. Update `profiles` Table

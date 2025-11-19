@@ -7,7 +7,7 @@ import MealsOnWheelsLogo from "./MealsOnWheelsLogo";
 import AdminDashboard from "./admin/AdminDashboard";
 import DayView from "./admin/DayView";
 import RouteSidebar from "./admin/RouteSidebar";
-import { getWeekRange, getNextWeek, getPreviousWeek, getWeekDays } from "@/lib/utils/dateUtils";
+import { getWeekRange, getNextWeek, getPreviousWeek, getWeekDays, parseDateFromDB } from "@/lib/utils/dateUtils";
 import {
   getOrCreateWeek,
   getRoutes,
@@ -15,9 +15,13 @@ import {
   assignVolunteer,
   copyPreviousWeek,
   publishWeek,
+  getRouteRequirements,
+  getRouteRequirement,
+  removeVolunteerFromRoute,
   Week,
   Route,
   Assignment,
+  RouteRequirement,
 } from "@/lib/supabase/admin";
 import { categorizeVolunteers, getAllVolunteers, CategorizedVolunteers } from "@/lib/supabase/volunteers";
 
@@ -29,6 +33,7 @@ export default function AdminContent() {
   const [selectedRouteNumber, setSelectedRouteNumber] = useState<number | null>(null);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [routeRequirements, setRouteRequirements] = useState<RouteRequirement[]>([]);
   const [volunteers, setVolunteers] = useState<any[]>([]);
   const [categorized, setCategorized] = useState<CategorizedVolunteers>({
     available: [],
@@ -79,15 +84,17 @@ export default function AdminContent() {
       setCurrentWeek(week);
 
       if (week) {
-        const [routesData, assignmentsData, volunteersData] = await Promise.all([
+        const [routesData, assignmentsData, volunteersData, requirementsData] = await Promise.all([
           getRoutes(),
           getAssignments(week.id),
           getAllVolunteers(),
+          getRouteRequirements(week.id),
         ]);
 
         setRoutes(routesData);
         setAssignments(assignmentsData);
         setVolunteers(volunteersData);
+        setRouteRequirements(requirementsData);
       }
     } catch (error) {
       console.error("Error loading week data:", error);
@@ -185,6 +192,25 @@ export default function AdminContent() {
   const handleAssignVolunteer = async (volunteerId: string) => {
     if (!currentWeek || !selectedDay || !selectedRouteId) return;
 
+    // Check if route is at capacity before assigning
+    const routeAssignments = assignments.filter(
+      (a) => a.day_of_week === selectedDay && a.route_id === selectedRouteId && a.volunteer_id
+    );
+    const currentCount = routeAssignments.length;
+    
+    const routeRequirement = routeRequirements.find(
+      (req) => req.day_of_week === selectedDay && req.route_id === selectedRouteId
+    );
+    const maxVolunteers = routeRequirement?.max_volunteers || 1;
+    
+    // Check if route is already at capacity
+    if (currentCount >= maxVolunteers) {
+      setErrorMessage(
+        `This route is already at capacity (${currentCount}/${maxVolunteers}). Please either increase the number of volunteers or remove the current volunteer(s) to replace with a new one.`
+      );
+      return;
+    }
+
     setAssigning(true);
     setErrorMessage(null);
     try {
@@ -205,7 +231,6 @@ export default function AdminContent() {
     setAssigning(true);
     setErrorMessage(null);
     try {
-      const { removeVolunteerFromRoute } = await import("@/lib/supabase/admin");
       await removeVolunteerFromRoute(currentWeek.id, selectedDay, selectedRouteId, volunteerId);
       await loadWeekData(); // Refresh assignments
       setSuccessMessage("Volunteer removed successfully!");
@@ -222,12 +247,40 @@ export default function AdminContent() {
   };
 
   // Calculate assignment counts for each day
-  const assignmentCounts = assignments.reduce((acc, assignment) => {
-    if (assignment.volunteer_id) {
-      acc[assignment.day_of_week] = (acc[assignment.day_of_week] || 0) + 1;
-    }
-    return acc;
-  }, {} as { [key: string]: number });
+  // Count only fully staffed routes (currentCount >= maxVolunteers)
+  const assignmentCounts = (() => {
+    const counts: { [key: string]: number } = {};
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+    
+    days.forEach((day) => {
+      // Get all routes for this day
+      const dayRoutes = routes;
+      let fullyStaffedCount = 0;
+      
+      dayRoutes.forEach((route) => {
+        // Get assignments for this route on this day
+        const routeAssignments = assignments.filter(
+          (a) => a.day_of_week === day && a.route_id === route.id && a.volunteer_id
+        );
+        const currentCount = routeAssignments.length;
+        
+        // Get max volunteers for this route
+        const requirement = routeRequirements.find(
+          (req) => req.day_of_week === day && req.route_id === route.id
+        );
+        const maxVolunteers = requirement?.max_volunteers || 1;
+        
+        // Only count if fully staffed
+        if (currentCount >= maxVolunteers) {
+          fullyStaffedCount++;
+        }
+      });
+      
+      counts[day] = fullyStaffedCount;
+    });
+    
+    return counts;
+  })();
 
   // Create volunteer map for quick lookup
   const volunteerMap = volunteers.reduce((acc, v) => {
@@ -244,14 +297,23 @@ export default function AdminContent() {
     ...volunteerMap[a.volunteer_id!],
   })).filter((v) => v.first_name && v.last_name);
 
+  // Get max volunteers for selected route
+  const selectedRouteRequirement = routeRequirements.find(
+    req => req.day_of_week === selectedDay && req.route_id === selectedRouteId
+  );
+  const maxVolunteersForRoute = selectedRouteRequirement?.max_volunteers || 1;
+
   // Get assignments for selected day
   const dayAssignments = selectedDay
     ? assignments.filter((a) => a.day_of_week === selectedDay)
     : [];
 
-  // Get the selected day's date
+  // Get the selected day's date - parse as local time to avoid timezone issues
   const selectedDayDate = selectedDay && currentWeek
-    ? getWeekDays(new Date(currentWeek.week_start_date)).find((d) => d.day === selectedDay)?.date
+    ? (() => {
+        const weekStart = parseDateFromDB(currentWeek.week_start_date);
+        return getWeekDays(weekStart).find((d) => d.day === selectedDay)?.date;
+      })()
     : null;
 
   if (loading) {
@@ -273,13 +335,13 @@ export default function AdminContent() {
   const { start, end } = getWeekRange(currentWeekStart);
 
   return (
-    <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="relative z-10 max-w-[1600px] mx-auto px-8 sm:px-12 lg:px-16 py-12">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.2 }}
-        className="mb-10"
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        className="mb-12"
       >
         <div className="flex justify-between items-start mb-6">
           <div className="flex items-center gap-6">
@@ -354,6 +416,7 @@ export default function AdminContent() {
             date={selectedDayDate || new Date()}
             routes={routes}
             assignments={dayAssignments}
+            routeRequirements={routeRequirements.filter(req => req.day_of_week === selectedDay)}
             onRouteClick={handleRouteClick}
             onBack={handleBackToWeek}
             selectedRouteId={selectedRouteId}
@@ -364,14 +427,19 @@ export default function AdminContent() {
       </motion.div>
 
       {/* Route Sidebar */}
-      {selectedRouteId && selectedRouteNumber && (
+      {selectedRouteId && selectedRouteNumber && selectedDay && currentWeek && (
         <RouteSidebar
           routeNumber={selectedRouteNumber}
+          routeId={selectedRouteId}
+          weekId={currentWeek.id}
+          day={selectedDay}
           currentVolunteers={currentVolunteers}
           volunteers={categorized}
+          maxVolunteers={maxVolunteersForRoute}
           onAssign={handleAssignVolunteer}
           onRemove={handleRemoveVolunteer}
           onClose={handleCloseSidebar}
+          onCapacityChange={loadWeekData}
           assigning={assigning}
         />
       )}

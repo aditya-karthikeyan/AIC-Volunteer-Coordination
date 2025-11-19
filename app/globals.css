@@ -3,67 +3,73 @@
 @tailwind utilities;
 
 @layer base {
+  /* Smooth matte background for claymorphism */
   body {
-    background: linear-gradient(135deg, #F0F0F0 0%, #F5F5F5 50%, #F0F0F0 100%);
+    background: radial-gradient(circle at 30% 20%, rgba(59,180,193,0.08), transparent),
+                radial-gradient(circle at 80% 70%, rgba(196,214,0,0.05), transparent),
+                #F7F9FA;
+    background-attachment: fixed;
     min-height: 100vh;
-    position: relative;
-    overflow-x: hidden;
-    color: #1E3A5F;
-  }
-  
-  body::before {
-    content: '';
-    position: fixed;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: 
-      radial-gradient(circle at 20% 30%, rgba(0, 180, 193, 0.08) 0%, transparent 60%),
-      radial-gradient(circle at 80% 70%, rgba(191, 255, 0, 0.08) 0%, transparent 60%),
-      radial-gradient(circle at 50% 50%, rgba(0, 180, 193, 0.05) 0%, transparent 60%);
-    pointer-events: none;
-    z-index: 0;
+    color: #0F1C2E;
   }
 }
 
 @layer utilities {
+  /* Claymorphism card style - soft clay look */
   .neumorphic {
-    @apply bg-gray-100;
-    box-shadow: 
-      12px 12px 24px rgba(0, 0, 0, 0.15),
-      -12px -12px 24px rgba(255, 255, 255, 1),
-      inset 1px 1px 0 rgba(255, 255, 255, 0.8);
+    background: #FFFFFF;
+    box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.12),
+                inset 0px 2px 3px rgba(255, 255, 255, 0.7);
+    border-radius: 24px;
   }
   
   .neumorphic-inset {
-    @apply bg-gray-100;
-    box-shadow: 
-      inset 4px 4px 8px rgba(0, 0, 0, 0.15),
-      inset -4px -4px 8px rgba(255, 255, 255, 0.9),
-      1px 1px 2px rgba(0, 0, 0, 0.05);
+    background: #FFFFFF;
+    box-shadow: inset 6px 6px 12px rgba(163, 177, 198, 0.4),
+                inset -6px -6px 12px rgba(255, 255, 255, 0.5);
+    border-radius: 20px;
   }
   
   .neumorphic-sm {
-    @apply bg-gray-100;
-    box-shadow: 
-      6px 6px 12px rgba(0, 0, 0, 0.15),
-      -6px -6px 12px rgba(255, 255, 255, 1),
-      inset 1px 1px 0 rgba(255, 255, 255, 0.8);
+    background: #FFFFFF;
+    box-shadow: 0px 6px 20px rgba(0, 0, 0, 0.1),
+                inset 0px 1px 2px rgba(255, 255, 255, 0.6);
+    border-radius: 20px;
   }
   
+  /* Pressable button with clay depth */
   .neumorphic-button {
-    @apply bg-gradient-to-r from-primary to-primary-light;
-    box-shadow: 
-      8px 8px 16px rgba(0, 180, 193, 0.3),
-      -4px -4px 8px rgba(255, 255, 255, 0.2),
-      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    background: linear-gradient(180deg, #3BB4C1, #32A2AD);
+    box-shadow: 0px 8px 20px rgba(59, 180, 193, 0.4),
+                inset 0px -3px 5px rgba(0, 0, 0, 0.15),
+                inset 0px 3px 6px rgba(255, 255, 255, 0.5);
+    border-radius: 16px;
   }
   
   .neumorphic-button:active {
-    box-shadow: 
-      inset 4px 4px 8px rgba(0, 0, 0, 0.2),
-      inset -2px -2px 4px rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0px 4px 8px rgba(0, 0, 0, 0.3),
+                inset 0px -2px 4px rgba(255, 255, 255, 0.2);
+  }
+
+  /* Secondary button - soft white with outline */
+  .clay-button-secondary {
+    background: #FFFFFF;
+    box-shadow: 0px 6px 18px rgba(0, 0, 0, 0.1),
+                inset 0px 2px 4px rgba(255, 255, 255, 0.8);
+    border: 1px solid #E0E0E0;
+    border-radius: 16px;
+  }
+
+  /* Status borders for routes */
+  .route-assigned {
+    border: 2px solid #C4D600;
+  }
+
+  .route-warning {
+    border: 2px solid #FFD54F;
+  }
+
+  .route-empty {
+    border: 1px solid #E0E0E0;
   }
 }
-

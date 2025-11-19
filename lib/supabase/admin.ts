@@ -26,6 +26,16 @@ export interface Route {
   route_name: string | null;
 }
 
+export interface RouteRequirement {
+  id: string;
+  week_id: string;
+  day_of_week: string;
+  route_id: string;
+  max_volunteers: number;
+  created_at: string;
+  updated_at: string;
+}
+
 /**
  * Get or create a week by start date
  */
@@ -397,6 +407,89 @@ export async function getAllWeeks(): Promise<Week[]> {
   } catch (error) {
     console.error("Error getting weeks:", error);
     return [];
+  }
+}
+
+/**
+ * Get all route requirements for a week
+ */
+export async function getRouteRequirements(weekId: string): Promise<RouteRequirement[]> {
+  try {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("route_requirements")
+      .select("*")
+      .eq("week_id", weekId);
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error("Error getting route requirements:", error);
+    return [];
+  }
+}
+
+/**
+ * Get a specific route requirement (defaults to 1 if not found)
+ */
+export async function getRouteRequirement(
+  weekId: string,
+  day: string,
+  routeId: string
+): Promise<number> {
+  try {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from("route_requirements")
+      .select("max_volunteers")
+      .eq("week_id", weekId)
+      .eq("day_of_week", day)
+      .eq("route_id", routeId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data?.max_volunteers || 1; // Default to 1 if not set
+  } catch (error) {
+    console.error("Error getting route requirement:", error);
+    return 1; // Default to 1 on error
+  }
+}
+
+/**
+ * Set or update route requirement for max volunteers
+ */
+export async function setRouteRequirement(
+  weekId: string,
+  day: string,
+  routeId: string,
+  maxVolunteers: number
+): Promise<boolean> {
+  try {
+    const supabase = createClient();
+    
+    // Validate input
+    if (maxVolunteers < 1 || maxVolunteers > 10) {
+      throw new Error("Max volunteers must be between 1 and 10");
+    }
+
+    // Upsert (insert or update)
+    const { error } = await supabase
+      .from("route_requirements")
+      .upsert({
+        week_id: weekId,
+        day_of_week: day,
+        route_id: routeId,
+        max_volunteers: maxVolunteers,
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: "week_id,day_of_week,route_id"
+      });
+
+    if (error) throw error;
+    return true;
+  } catch (error) {
+    console.error("Error setting route requirement:", error);
+    throw error;
   }
 }
 

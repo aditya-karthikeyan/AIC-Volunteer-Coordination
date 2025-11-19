@@ -1,7 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import AnimatedBackground from "@/components/AnimatedBackground";
-import DashboardContent from "@/components/DashboardContent";
+import VolunteerDashboard from "@/components/VolunteerDashboard";
 import { checkIsAdmin } from "@/lib/supabase/profile";
 
 export default async function DashboardPage() {
@@ -19,10 +18,8 @@ export default async function DashboardPage() {
   }
 
   return (
-    <div className="min-h-screen p-8 relative overflow-hidden">
-      <AnimatedBackground />
-      <DashboardContent userEmail={user.email || ""} />
+    <div className="min-h-screen relative overflow-hidden">
+      <VolunteerDashboard userId={user.id} userEmail={user.email || ""} />
     </div>
   );
 }
-
